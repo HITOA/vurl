@@ -9,6 +9,11 @@ bool Vurl::RenderingContext::CreateInstance(const VkApplicationInfo* application
         uint32_t instanceExtensionCount, bool enableValidationLayer) {
     if (applicationInfo && volkGetInstanceVersion() < applicationInfo->apiVersion)
         return false;
+
+    if (applicationInfo)
+        vulkanApiVersion = applicationInfo->apiVersion;
+    else
+        vulkanApiVersion = volkGetInstanceVersion();
     
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -132,10 +137,40 @@ bool Vurl::RenderingContext::CreateDevice(VkSurfaceKHR surface, VkPhysicalDevice
 
     volkLoadDevice(vkDevice);
 
+    VmaVulkanFunctions vulkanFunctions{};
+    vulkanFunctions.vkGetPhysicalDeviceProperties = vkGetPhysicalDeviceProperties;
+    vulkanFunctions.vkGetPhysicalDeviceMemoryProperties = vkGetPhysicalDeviceMemoryProperties;
+    vulkanFunctions.vkAllocateMemory = vkAllocateMemory;
+    vulkanFunctions.vkFreeMemory = vkFreeMemory;
+    vulkanFunctions.vkMapMemory = vkMapMemory;
+    vulkanFunctions.vkUnmapMemory = vkUnmapMemory;
+    vulkanFunctions.vkFlushMappedMemoryRanges = vkFlushMappedMemoryRanges;
+    vulkanFunctions.vkInvalidateMappedMemoryRanges = vkInvalidateMappedMemoryRanges;
+    vulkanFunctions.vkBindBufferMemory = vkBindBufferMemory;
+    vulkanFunctions.vkBindImageMemory = vkBindImageMemory;
+    vulkanFunctions.vkGetBufferMemoryRequirements = vkGetBufferMemoryRequirements;
+    vulkanFunctions.vkGetImageMemoryRequirements = vkGetImageMemoryRequirements;
+    vulkanFunctions.vkCreateBuffer = vkCreateBuffer;
+    vulkanFunctions.vkDestroyBuffer = vkDestroyBuffer;
+    vulkanFunctions.vkCreateImage = vkCreateImage;
+    vulkanFunctions.vkDestroyImage = vkDestroyImage;
+    vulkanFunctions.vkCmdCopyBuffer = vkCmdCopyBuffer;
+
+    VmaAllocatorCreateInfo allocatorCreateInfo{};
+    allocatorCreateInfo.flags = 0;
+    allocatorCreateInfo.vulkanApiVersion = vulkanApiVersion;
+    allocatorCreateInfo.physicalDevice = vkPhysicalDevice;
+    allocatorCreateInfo.device = vkDevice;
+    allocatorCreateInfo.instance = vkInstance;
+    allocatorCreateInfo.pVulkanFunctions = &vulkanFunctions;
+
+    vmaCreateAllocator(&allocatorCreateInfo, &vmaAllocator);
+
     return true;
 }
 
 void Vurl::RenderingContext::DestroyDevice() {
+    vmaDestroyAllocator(vmaAllocator);
     vkDeviceWaitIdle(vkDevice);
     vkDestroyDevice(vkDevice, nullptr);
     vkDevice = VK_NULL_HANDLE;

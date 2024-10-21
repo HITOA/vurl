@@ -1,6 +1,6 @@
 #pragma once
 
-#include <volk.h>
+#include <vurl/vulkan_header.hpp>
 #include <vurl/vulkan_def.hpp>
 #include <vector>
 
@@ -33,7 +33,9 @@ namespace Vurl {
         VkInstance vkInstance = VK_NULL_HANDLE;
         VkPhysicalDevice vkPhysicalDevice = VK_NULL_HANDLE;
         VkDevice vkDevice = VK_NULL_HANDLE;
+        VmaAllocator vmaAllocator = VK_NULL_HANDLE;
         QueueInfo queueInfo;
+        uint32_t vulkanApiVersion = VK_API_VERSION_1_3;
 
         std::vector<const char*> enabledValidationLayers{};
         std::vector<const char*> enabledInstanceExtensions{};

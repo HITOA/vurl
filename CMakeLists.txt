@@ -19,6 +19,7 @@ add_library(vurl STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/src/rendering_context.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/shader.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/surface.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/vma.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/vurl.cpp
 )
 
