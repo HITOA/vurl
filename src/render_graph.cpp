@@ -761,7 +761,7 @@ bool Vurl::RenderGraph::ExecuteGraphicsPassGroup(GraphicsPassGroup* group, VkCom
 
     for (uint32_t i = 0; i < group->passes.size(); ++i) {
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, group->pipelines[i]);
-        group->passes[i]->GetRenderingCallback()(commandBuffer);
+        group->passes[i]->GetRenderingCallback()(commandBuffer, frameIndex);
     }
 
     vkCmdEndRenderPass(commandBuffer);

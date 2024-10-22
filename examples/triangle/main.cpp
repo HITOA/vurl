@@ -68,8 +68,8 @@ public:
         pass->AddColorAttachment(surface->GetBackBuffer());
         pass->SetClearAttachment(surface->GetBackBuffer());
         pass->AddBufferInput(vertexBuffer);
-        pass->SetRenderingCallback([vertexBufferSlice](VkCommandBuffer commandBuffer){
-            VkBuffer vertexBuffers[] = { vertexBufferSlice->vkBuffer };
+        pass->SetRenderingCallback([vertexBuffer](VkCommandBuffer commandBuffer, uint32_t frameIndex){
+            VkBuffer vertexBuffers[] = { vertexBuffer->GetResourceSlice(frameIndex)->vkBuffer };
             VkDeviceSize offsets[] = { 0 };
             vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
             vkCmdDraw(commandBuffer, 3, 1, 0, 0);

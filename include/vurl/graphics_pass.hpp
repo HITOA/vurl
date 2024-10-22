@@ -35,8 +35,8 @@ namespace Vurl {
 
         inline std::shared_ptr<GraphicsPipeline> GetGraphicsPipeline() const { return graphicsPipeline; }
 
-        inline void SetRenderingCallback(std::function<void(VkCommandBuffer)> callback) { renderingCallback = callback; }
-        inline std::function<void(VkCommandBuffer)> GetRenderingCallback() const { return renderingCallback; }
+        inline void SetRenderingCallback(std::function<void(VkCommandBuffer, uint32_t)> callback) { renderingCallback = callback; }
+        inline std::function<void(VkCommandBuffer, uint32_t)> GetRenderingCallback() const { return renderingCallback; }
         
         inline uint32_t GetHash() const {
             Hasher hasher{};
@@ -60,6 +60,6 @@ namespace Vurl {
 
         std::vector<BufferHandle> inputBuffers{};
         
-        std::function<void(VkCommandBuffer)> renderingCallback{};
+        std::function<void(VkCommandBuffer, uint32_t)> renderingCallback{};
     };
 }
