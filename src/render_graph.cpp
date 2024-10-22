@@ -4,7 +4,7 @@
 
 
 Vurl::RenderGraph::RenderGraph(std::shared_ptr<RenderingContext> context) : context{ context } {
-
+    
 }
 
 Vurl::RenderGraph::~RenderGraph() {
@@ -16,6 +16,97 @@ void Vurl::RenderGraph::SetSurface(std::shared_ptr<Surface> surface) {
     AddExternalTexture(surface->GetBackBuffer());
     backBufferTexture = GetTextureHandle(surface->GetBackBuffer());
 }
+
+Vurl::BufferHandle Vurl::RenderGraph::GetBufferHandle(std::shared_ptr<Resource<Buffer>> buffer) {
+    for (uint32_t i = 0; i < buffers.size(); ++i)
+        if (buffers[i].get() == buffer.get())
+            return (int)i;
+    return VURL_NULL_HANDLE;
+}
+
+void Vurl::RenderGraph::AddExternalBuffer(std::shared_ptr<Resource<Buffer>> buffer) {
+    if (GetBufferHandle(buffer) != VURL_NULL_HANDLE)
+        return;
+    buffers.push_back(buffer);
+}
+
+void Vurl::RenderGraph::CommitBuffer(std::shared_ptr<Resource<Buffer>> buffer, const uint8_t* initialData, uint32_t size) {
+    if (buffer->IsTransient())
+        return;
+    
+    VkBuffer stagingBuffer = VK_NULL_HANDLE;
+    VmaAllocation stagingBufferAllocation = VK_NULL_HANDLE;
+    VkCommandBuffer transferTransientCommandBuffer = VK_NULL_HANDLE;
+    VkBufferCopy copyRegion{};
+    copyRegion.srcOffset = 0;
+    copyRegion.dstOffset = 0;
+
+    if (initialData != nullptr) {
+        VkBufferCreateInfo stagingBufferCreateInfo{};
+        stagingBufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        stagingBufferCreateInfo.size = size;
+        stagingBufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        stagingBufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        VmaAllocationCreateInfo stagingAllocCreateInfo{};
+        stagingAllocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
+        stagingAllocCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+
+        vmaCreateBuffer(context->GetAllocator(), &stagingBufferCreateInfo, &stagingAllocCreateInfo, &stagingBuffer, &stagingBufferAllocation, nullptr);
+        vmaCopyMemoryToAllocation(context->GetAllocator(), initialData, stagingBufferAllocation, 0, size);
+
+        VkCommandBufferAllocateInfo commandBufferAllocateInfo{};
+        commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        commandBufferAllocateInfo.commandPool = transientCommandPool;
+        commandBufferAllocateInfo.commandBufferCount = 1;
+
+        vkAllocateCommandBuffers(context->GetDevice(), &commandBufferAllocateInfo, &transferTransientCommandBuffer);
+
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        vkBeginCommandBuffer(transferTransientCommandBuffer, &beginInfo);
+    }
+
+    for (uint32_t i = 0; i < buffer->GetSliceCount(); ++i) {
+        std::shared_ptr<Buffer> slice = buffer->GetResourceSlice(i);
+
+        VkBufferCreateInfo bufferCreateInfo{};
+        bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        bufferCreateInfo.size = slice->size;
+        bufferCreateInfo.usage = slice->usage;
+        bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        VmaAllocationCreateInfo allocCreateInfo{};
+        allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+
+        vmaCreateBuffer(context->GetAllocator(), &bufferCreateInfo, &allocCreateInfo, &slice->vkBuffer, &slice->allocation, nullptr);
+
+        if (initialData != nullptr) {
+            copyRegion.size = std::min((VkDeviceSize)slice->size, (VkDeviceSize)size);
+            vkCmdCopyBuffer(transferTransientCommandBuffer, stagingBuffer, slice->vkBuffer, 1, &copyRegion);
+        }
+    }
+
+    if (initialData != nullptr) {
+        vkEndCommandBuffer(transferTransientCommandBuffer);
+
+        VkSubmitInfo submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &transferTransientCommandBuffer;
+
+        vkQueueSubmit(context->GetQueueInfo().queues[QUEUE_INDEX_GRAPHICS], 1, &submitInfo, VK_NULL_HANDLE);
+        vkQueueWaitIdle(context->GetQueueInfo().queues[QUEUE_INDEX_GRAPHICS]);
+
+        vkFreeCommandBuffers(context->GetDevice(), transientCommandPool, 1, &transferTransientCommandBuffer);
+
+        vmaDestroyBuffer(context->GetAllocator(), stagingBuffer, stagingBufferAllocation);
+    }
+}
+
 
 Vurl::TextureHandle Vurl::RenderGraph::GetTextureHandle(std::shared_ptr<Resource<Texture>> texture) {
     for (uint32_t i = 0; i < textures.size(); ++i)
@@ -128,6 +219,19 @@ void Vurl::RenderGraph::CreatePipelineCache() {
 
 void Vurl::RenderGraph::DestroyPipelineCache() {
     vkDestroyPipelineCache(context->GetDevice(), pipelineCache, nullptr);
+}
+
+void Vurl::RenderGraph::CreateTransientCommandPool() {
+    VkCommandPoolCreateInfo poolCreateInfo{};
+    poolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    poolCreateInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+    poolCreateInfo.queueFamilyIndex = context->GetQueueInfo().familyIndices[QUEUE_INDEX_GRAPHICS];
+
+    vkCreateCommandPool(context->GetDevice(), &poolCreateInfo, nullptr, &transientCommandPool);
+}
+
+void Vurl::RenderGraph::DestroyTransientCommandPool() {
+    vkDestroyCommandPool(context->GetDevice(), transientCommandPool, nullptr);
 }
 
 bool Vurl::RenderGraph::BuildDirectedPassesGraph() {

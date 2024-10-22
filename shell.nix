@@ -40,6 +40,6 @@ pkgs.mkShell {
   #Volk need vulkan-loader in LD_LIBRARY_PATH
   shellHook = ''
     export "LD_LIBRARY_PATH=$NIX_LD_LIBRARY_PATH"
-    cmake -B"build" -DGLFW_BUILD_WAYLAND=ON -DVURL_BUILD_WSI_WAYLAND=ON .
+    cmake -B"build" -DCMAKE_BUILD_TYPE=Debug -DGLFW_BUILD_WAYLAND=ON -DVURL_BUILD_WSI_WAYLAND=ON .
   '';
 }

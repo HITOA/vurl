@@ -21,6 +21,7 @@ namespace Vurl {
         inline VkInstance GetInstance() const { return vkInstance; }
         inline VkPhysicalDevice GetPhysicalDevice() const { return vkPhysicalDevice; }
         inline VkDevice GetDevice() const { return vkDevice; }
+        inline VmaAllocator GetAllocator() const { return vmaAllocator; }
         inline const QueueInfo& GetQueueInfo() const { return queueInfo; }
 
     private:
@@ -28,7 +29,7 @@ namespace Vurl {
         bool HasLayer(VkLayerProperties* layers, uint32_t layerCount, const char* layer);
         QueueInfo GetPhysicalDeviceQueueInfo(VkSurfaceKHR surface, VkPhysicalDevice device);
         int RatePhysicalDevice(VkSurfaceKHR surface, VkPhysicalDevice device, const char** extensions, uint32_t extensionCount);
-
+        
     private:
         VkInstance vkInstance = VK_NULL_HANDLE;
         VkPhysicalDevice vkPhysicalDevice = VK_NULL_HANDLE;

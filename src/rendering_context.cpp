@@ -9,11 +9,19 @@ bool Vurl::RenderingContext::CreateInstance(const VkApplicationInfo* application
         uint32_t instanceExtensionCount, bool enableValidationLayer) {
     if (applicationInfo && volkGetInstanceVersion() < applicationInfo->apiVersion)
         return false;
+    
+    VkApplicationInfo defaultApplicationInfo{};
+    defaultApplicationInfo.sType == VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    defaultApplicationInfo.pApplicationName = "null";
+    defaultApplicationInfo.applicationVersion = 0;
+    defaultApplicationInfo.pEngineName = "vurl";
+    defaultApplicationInfo.engineVersion = 0;
+    defaultApplicationInfo.apiVersion = volkGetInstanceVersion();
+    
+    if (!applicationInfo)
+        applicationInfo = &defaultApplicationInfo;
 
-    if (applicationInfo)
-        vulkanApiVersion = applicationInfo->apiVersion;
-    else
-        vulkanApiVersion = volkGetInstanceVersion();
+    vulkanApiVersion = applicationInfo->apiVersion;
     
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -74,6 +82,8 @@ bool Vurl::RenderingContext::CreateDevice(VkSurfaceKHR surface, VkPhysicalDevice
     
     std::vector<const char*> requiredDeviceExtensions{};
     requiredDeviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+    requiredDeviceExtensions.push_back(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
+    requiredDeviceExtensions.push_back(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
 
     VkPhysicalDevice selectedDevice = device;
 
@@ -155,6 +165,21 @@ bool Vurl::RenderingContext::CreateDevice(VkSurfaceKHR surface, VkPhysicalDevice
     vulkanFunctions.vkCreateImage = vkCreateImage;
     vulkanFunctions.vkDestroyImage = vkDestroyImage;
     vulkanFunctions.vkCmdCopyBuffer = vkCmdCopyBuffer;
+    if (vulkanApiVersion <= VK_API_VERSION_1_0) {
+        vulkanFunctions.vkGetBufferMemoryRequirements2KHR = vkGetBufferMemoryRequirements2KHR;
+        vulkanFunctions.vkGetImageMemoryRequirements2KHR = vkGetImageMemoryRequirements2KHR;
+        vulkanFunctions.vkBindBufferMemory2KHR = vkBindBufferMemory2KHR;
+        vulkanFunctions.vkBindImageMemory2KHR = vkBindImageMemory2KHR;
+        vulkanFunctions.vkGetPhysicalDeviceMemoryProperties2KHR = vkGetPhysicalDeviceMemoryProperties2KHR;
+    } else {
+        vulkanFunctions.vkGetBufferMemoryRequirements2KHR = vkGetBufferMemoryRequirements2;
+        vulkanFunctions.vkGetImageMemoryRequirements2KHR = vkGetImageMemoryRequirements2;
+        vulkanFunctions.vkBindBufferMemory2KHR = vkBindBufferMemory2;
+        vulkanFunctions.vkBindImageMemory2KHR = vkBindImageMemory2;
+        vulkanFunctions.vkGetPhysicalDeviceMemoryProperties2KHR = vkGetPhysicalDeviceMemoryProperties2;
+    }
+    vulkanFunctions.vkGetDeviceBufferMemoryRequirements = vkGetDeviceBufferMemoryRequirements;
+    vulkanFunctions.vkGetDeviceImageMemoryRequirements = vkGetDeviceImageMemoryRequirements;
 
     VmaAllocatorCreateInfo allocatorCreateInfo{};
     allocatorCreateInfo.flags = 0;

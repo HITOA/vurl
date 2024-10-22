@@ -5,6 +5,11 @@
 
 #include <example_base.hpp>
 
+struct Vertex {
+    float position[2];
+    float color[3];
+};
+
 class TriangleExample : public ExampleBase {
 public:
     virtual void Initialize() override {
@@ -34,7 +39,24 @@ public:
 
         graph = std::make_shared<Vurl::RenderGraph>(context);
         graph->CreatePipelineCache();
+        graph->CreateTransientCommandPool();
         graph->SetSurface(surface);
+
+        std::shared_ptr<Vurl::Resource<Vurl::Buffer>> vertexBuffer = graph->CreateBuffer<Vurl::Resource<Vurl::Buffer>>("Triangle Vertex Buffer", false);
+        std::shared_ptr<Vurl::Buffer> vertexBufferSlice = std::make_shared<Vurl::Buffer>();
+        vertexBuffer->SetSliceCount(1);
+        vertexBuffer->SetResourceSlice(vertexBufferSlice, 0);
+
+        Vertex vertices[3] = { 
+            { { 0.0f, -0.5f }, { 1.0f, 0.0f, 0.0f } },
+            { { 0.5f, 0.5f }, { 0.0f, 1.0f, 0.0f } },
+            { { -0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f } }
+        };
+
+        vertexBufferSlice->size = sizeof(vertices);
+        vertexBufferSlice->usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        
+        graph->CommitBuffer(vertexBuffer, (const uint8_t*)vertices, sizeof(vertices));
 
         std::shared_ptr<Vurl::GraphicsPass> pass = graph->CreateGraphicsPass("Triangle Pass", graphicsPipeline);
         pass->AddColorAttachment(surface->GetBackBuffer());
@@ -52,6 +74,7 @@ public:
 
     virtual void Destroy() override {
         graph->Destroy();
+        graph->DestroyTransientCommandPool();
         graph->DestroyPipelineCache();
         surface->DestroySwapchain();
         surface->DestroySurface();

@@ -7,6 +7,7 @@
 #include <vurl/graphics_pipeline.hpp>
 #include <vurl/resource.hpp>
 #include <vurl/texture.hpp>
+#include <vurl/buffer.hpp>
 #include <vurl/rendering_context.hpp>
 #include <vurl/surface.hpp>
 #include <vector>
@@ -36,6 +37,21 @@ namespace Vurl {
         
         void SetSurface(std::shared_ptr<Surface> surface);
 
+        BufferHandle GetBufferHandle(std::shared_ptr<Resource<Buffer>> buffer);
+        void AddExternalBuffer(std::shared_ptr<Resource<Buffer>> buffer);
+        void CommitBuffer(std::shared_ptr<Resource<Buffer>> buffer, const uint8_t* initialData = nullptr, uint32_t size = 0);
+
+        template<typename T>
+        std::shared_ptr<T> CreateBuffer(const std::string& name, bool transient = true) {
+            std::shared_ptr<T> buffer = std::make_shared<T>(name);
+            buffer->SetTransient(transient);
+            buffer->SetExternal(false);
+
+            buffers.push_back(buffer);
+
+            return buffer;
+        }
+
         TextureHandle GetTextureHandle(std::shared_ptr<Resource<Texture>> texture);
         void AddExternalTexture(std::shared_ptr<Resource<Texture>> texture);
 
@@ -58,6 +74,9 @@ namespace Vurl {
 
         void CreatePipelineCache();
         void DestroyPipelineCache();
+
+        void CreateTransientCommandPool();
+        void DestroyTransientCommandPool();
     private:
         bool BuildDirectedPassesGraph();
         bool BuildGraphicsPassGroups();
@@ -67,6 +86,7 @@ namespace Vurl {
         bool BuildGraphicsPassGroupGraphicsPipelines(GraphicsPassGroup* group);
         bool BuildCommandBuffers();
         bool BuildSynchronizationObjects();
+        //bool BuildTransientResource();
 
         void DestroyGraphicsPassGroups();
         void DestroyCommandBuffers();
@@ -83,12 +103,14 @@ namespace Vurl {
         std::shared_ptr<Surface> surface = nullptr;
         
         VkPipelineCache pipelineCache = VK_NULL_HANDLE;
+        VkCommandPool transientCommandPool = VK_NULL_HANDLE;
         VkCommandPool commandPool = VK_NULL_HANDLE;
         VkCommandBuffer primaryCommandBuffers[VURL_MAX_FRAMES_IN_FLIGHT];
         VkSemaphore availableSwapchainImageSemaphores[VURL_MAX_FRAMES_IN_FLIGHT];
         VkSemaphore renderFinishedSemaphores[VURL_MAX_FRAMES_IN_FLIGHT];
         VkFence inFlightFences[VURL_MAX_FRAMES_IN_FLIGHT];
 
+        std::vector<std::shared_ptr<Resource<Buffer>>> buffers{};
         std::vector<std::shared_ptr<Resource<Texture>>> textures{};
         TextureHandle backBufferTexture = VURL_NULL_HANDLE;
 
