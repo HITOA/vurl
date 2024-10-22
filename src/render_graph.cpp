@@ -524,6 +524,8 @@ bool Vurl::RenderGraph::BuildGraphicsPassGroupFramebuffers(GraphicsPassGroup* gr
 bool Vurl::RenderGraph::BuildGraphicsPassGroupGraphicsPipelines(GraphicsPassGroup* group) {
     struct GraphicsPipelineCreateInfo {
         VkPipelineDynamicStateCreateInfo dynamicState{};
+        std::vector<VkVertexInputBindingDescription> bindingDescriptions{};
+        std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
         VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
         VkPipelineViewportStateCreateInfo viewportState{};
@@ -547,11 +549,34 @@ bool Vurl::RenderGraph::BuildGraphicsPassGroupGraphicsPipelines(GraphicsPassGrou
         graphicsPipelineCreateInfo.dynamicState.dynamicStateCount = graphicsPipeline->GetDynamicStatesCount();
         graphicsPipelineCreateInfo.dynamicState.pDynamicStates = graphicsPipeline->GetDynamicStates();
 
+        for (uint32_t i = 0; i < graphicsPipeline->GetVertexInputCount(); ++i) {
+            const VertexInputDescription& description = graphicsPipeline->GetVertexInput(i);
+
+            VkVertexInputBindingDescription vertexInputBindingDescription{};
+            vertexInputBindingDescription.binding = 0;
+            vertexInputBindingDescription.stride = description.GetStride();
+            vertexInputBindingDescription.inputRate = description.GetInputRate();
+
+            graphicsPipelineCreateInfo.bindingDescriptions.push_back(vertexInputBindingDescription);
+
+            for (uint32_t j = 0; j < description.GetAttributeCount(); ++j) {
+                const VertexInputAttributeDescription& attributeDescription = description.GetAttribute(j);
+
+                VkVertexInputAttributeDescription vertexInputAttributeDescription{};
+                vertexInputAttributeDescription.binding = i;
+                vertexInputAttributeDescription.location = attributeDescription.location;
+                vertexInputAttributeDescription.format = attributeDescription.GetVkFormat();
+                vertexInputAttributeDescription.offset = attributeDescription.offset;
+
+                graphicsPipelineCreateInfo.attributeDescriptions.push_back(vertexInputAttributeDescription);
+            }
+        }
+
         graphicsPipelineCreateInfo.vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        graphicsPipelineCreateInfo.vertexInputInfo.vertexBindingDescriptionCount = 0;
-        graphicsPipelineCreateInfo.vertexInputInfo.pVertexBindingDescriptions = nullptr;
-        graphicsPipelineCreateInfo.vertexInputInfo.vertexAttributeDescriptionCount = 0;
-        graphicsPipelineCreateInfo.vertexInputInfo.pVertexAttributeDescriptions = nullptr;
+        graphicsPipelineCreateInfo.vertexInputInfo.vertexBindingDescriptionCount = (uint32_t)graphicsPipelineCreateInfo.bindingDescriptions.size();
+        graphicsPipelineCreateInfo.vertexInputInfo.pVertexBindingDescriptions = graphicsPipelineCreateInfo.bindingDescriptions.data();
+        graphicsPipelineCreateInfo.vertexInputInfo.vertexAttributeDescriptionCount = (uint32_t)graphicsPipelineCreateInfo.attributeDescriptions.size();
+        graphicsPipelineCreateInfo.vertexInputInfo.pVertexAttributeDescriptions = graphicsPipelineCreateInfo.attributeDescriptions.data();
 
         graphicsPipelineCreateInfo.inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
         graphicsPipelineCreateInfo.inputAssembly.topology = graphicsPipeline->GetPipelinePrimitiveTopology();

@@ -14,11 +14,6 @@ namespace Vurl {
         Vector4
     };
 
-    enum class VertexInputRate {
-        Vertex,
-        Instance
-    };
-
     struct VertexInputAttributeDescription {
         uint32_t location = 0;
         uint32_t offset = 0;
@@ -37,6 +32,16 @@ namespace Vurl {
                 default: return 0;
             }
         }
+
+        inline VkFormat GetVkFormat() const {
+            switch (format) {
+                case VertexInputAttributeFormat::Float:   return VK_FORMAT_R32_SFLOAT;
+                case VertexInputAttributeFormat::Vector2: return VK_FORMAT_R32G32_SFLOAT;
+                case VertexInputAttributeFormat::Vector3: return VK_FORMAT_R32G32B32_SFLOAT;
+                case VertexInputAttributeFormat::Vector4: return VK_FORMAT_R32G32B32A32_SFLOAT;
+                default: return VK_FORMAT_R32_SFLOAT;
+            }
+        }
     };
 
     class VertexInputDescription {
@@ -51,21 +56,21 @@ namespace Vurl {
         ~VertexInputDescription() = default;
 
         inline uint32_t GetAttributeCount() const { return attributes.size(); }
-        inline const VertexInputAttributeDescription* GetAttributes() const { return attributes.data(); }
+        inline const VertexInputAttributeDescription& GetAttribute(uint32_t idx) const { return attributes[idx]; }
         inline void AddAttribute(VertexInputAttributeDescription& description) { 
             VertexInputAttributeDescription& a = attributes.emplace_back(description);
             a.offset = stride;
             stride += a.GetSize();
         }
 
-        inline void SetInputRate(VertexInputRate rate) { inputRate = rate; }
-        inline VertexInputRate GetInputRate() const { return inputRate; }
+        inline void SetInputRate(VkVertexInputRate rate) { inputRate = rate; }
+        inline VkVertexInputRate GetInputRate() const { return inputRate; }
 
         inline uint32_t GetStride() const { return stride; }
         
     private:
         std::vector<VertexInputAttributeDescription> attributes{};
-        VertexInputRate inputRate = VertexInputRate::Vertex;
+        VkVertexInputRate inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
         uint32_t stride = 0;
     };
 
@@ -95,7 +100,7 @@ namespace Vurl {
         inline std::shared_ptr<Shader> GetGeometryShader() const { return geometryShader; }
 
         inline uint32_t GetVertexInputCount() const { return vertexInputs.size(); }
-        inline const VertexInputDescription* GetVertexInputs() const { return vertexInputs.data(); }
+        inline const VertexInputDescription& GetVertexInput(uint32_t idx) const { return vertexInputs[idx]; }
         inline void AddVertexInput(const VertexInputDescription& inputDescription) { vertexInputs.push_back(inputDescription); }
 
         inline uint32_t GetDynamicStatesCount() const { return (uint32_t)dynamicStates.size(); }
