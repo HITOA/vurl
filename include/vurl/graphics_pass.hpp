@@ -4,6 +4,7 @@
 #include <vurl/render_graph_def.hpp>
 #include <vurl/resource.hpp>
 #include <vurl/texture.hpp>
+#include <vurl/buffer.hpp>
 #include <vurl/graphics_pipeline.hpp>
 #include <vector>
 #include <string>
@@ -23,6 +24,8 @@ namespace Vurl {
         void AddColorAttachment(std::shared_ptr<Resource<Texture>> texture);
         void AddInputAttachment(std::shared_ptr<Resource<Texture>> texture);
         void SetClearAttachment(std::shared_ptr<Resource<Texture>> texture);
+        
+        void AddBufferInput(std::shared_ptr<Resource<Buffer>> buffer);
 
         inline uint32_t GetColorAttachmentCount() const { return colorAttachments.size(); }
         inline uint32_t GetInputAttachmentCount() const { return inputAttachments.size(); }
@@ -50,9 +53,12 @@ namespace Vurl {
         std::string name;
         std::shared_ptr<GraphicsPipeline> graphicsPipeline = nullptr;
         RenderGraph* graph;
+
         std::vector<TextureHandle> colorAttachments{};
         std::vector<TextureHandle> inputAttachments{};
         TextureHandle clearAttachment = VURL_NULL_HANDLE;
+
+        std::vector<BufferHandle> inputBuffers{};
         
         std::function<void(VkCommandBuffer)> renderingCallback{};
     };

@@ -27,3 +27,10 @@ void Vurl::GraphicsPass::SetClearAttachment(std::shared_ptr<Resource<Texture>> t
         return;
     clearAttachment = handle;
 }
+
+void Vurl::GraphicsPass::AddBufferInput(std::shared_ptr<Resource<Buffer>> buffer) {
+    BufferHandle handle = graph->GetBufferHandle(buffer);
+    if (handle == VURL_NULL_HANDLE)
+        return;
+    inputBuffers.push_back(handle);
+}

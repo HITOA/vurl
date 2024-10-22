@@ -32,9 +32,15 @@ public:
         std::shared_ptr<Vurl::Shader> vertShader = CreateShaderFromFile("vert.spv", context->GetDevice());
         std::shared_ptr<Vurl::Shader> fragShader = CreateShaderFromFile("frag.spv", context->GetDevice());
 
+        Vurl::VertexInputDescription inputDescription{
+            { 0, Vurl::VertexInputAttributeFormat::Vector2 }, //Position
+            { 1, Vurl::VertexInputAttributeFormat::Vector3 }  //Color
+        };
+
         std::shared_ptr<Vurl::GraphicsPipeline> graphicsPipeline = std::make_shared<Vurl::GraphicsPipeline>(context->GetDevice());
         graphicsPipeline->SetVertexShader(vertShader);
         graphicsPipeline->SetFragmentShader(fragShader);
+        graphicsPipeline->AddVertexInput(inputDescription);
         graphicsPipeline->CreatePipelineLayout();
 
         graph = std::make_shared<Vurl::RenderGraph>(context);
@@ -61,6 +67,7 @@ public:
         std::shared_ptr<Vurl::GraphicsPass> pass = graph->CreateGraphicsPass("Triangle Pass", graphicsPipeline);
         pass->AddColorAttachment(surface->GetBackBuffer());
         pass->SetClearAttachment(surface->GetBackBuffer());
+        pass->AddBufferInput(vertexBuffer);
         pass->SetRenderingCallback([](VkCommandBuffer commandBuffer){
             vkCmdDraw(commandBuffer, 3, 1, 0, 0);
         });

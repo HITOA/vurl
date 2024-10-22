@@ -7,6 +7,68 @@
 #include <vector>
 
 namespace Vurl {
+    enum class VertexInputAttributeFormat {
+        Float,
+        Vector2,
+        Vector3,
+        Vector4
+    };
+
+    enum class VertexInputRate {
+        Vertex,
+        Instance
+    };
+
+    struct VertexInputAttributeDescription {
+        uint32_t location = 0;
+        uint32_t offset = 0;
+        VertexInputAttributeFormat format = VertexInputAttributeFormat::Float;
+
+        VertexInputAttributeDescription() = delete;
+        VertexInputAttributeDescription(uint32_t location, VertexInputAttributeFormat format) : 
+                location{ location }, format{ format } {}
+
+        inline uint32_t GetSize() const {
+            switch (format) {
+                case VertexInputAttributeFormat::Float:   return sizeof(float);
+                case VertexInputAttributeFormat::Vector2: return sizeof(float) * 2;
+                case VertexInputAttributeFormat::Vector3: return sizeof(float) * 3;
+                case VertexInputAttributeFormat::Vector4: return sizeof(float) * 4;
+                default: return 0;
+            }
+        }
+    };
+
+    class VertexInputDescription {
+    public:
+        VertexInputDescription() = default;
+        VertexInputDescription(std::initializer_list<VertexInputAttributeDescription> attributes) : attributes{ attributes } {
+            for (VertexInputAttributeDescription& description : this->attributes) {
+                description.offset = stride;
+                stride += description.GetSize();
+            }
+        }
+        ~VertexInputDescription() = default;
+
+        inline uint32_t GetAttributeCount() const { return attributes.size(); }
+        inline const VertexInputAttributeDescription* GetAttributes() const { return attributes.data(); }
+        inline void AddAttribute(VertexInputAttributeDescription& description) { 
+            VertexInputAttributeDescription& a = attributes.emplace_back(description);
+            a.offset = stride;
+            stride += a.GetSize();
+        }
+
+        inline void SetInputRate(VertexInputRate rate) { inputRate = rate; }
+        inline VertexInputRate GetInputRate() const { return inputRate; }
+
+        inline uint32_t GetStride() const { return stride; }
+        
+    private:
+        std::vector<VertexInputAttributeDescription> attributes{};
+        VertexInputRate inputRate = VertexInputRate::Vertex;
+        uint32_t stride = 0;
+    };
+
     class GraphicsPipeline : public HashedObject {
     public:
         GraphicsPipeline() = delete;
@@ -31,6 +93,10 @@ namespace Vurl {
         
         inline void SetGeometryShader(std::shared_ptr<Shader> shader) { geometryShader = shader; }
         inline std::shared_ptr<Shader> GetGeometryShader() const { return geometryShader; }
+
+        inline uint32_t GetVertexInputCount() const { return vertexInputs.size(); }
+        inline const VertexInputDescription* GetVertexInputs() const { return vertexInputs.data(); }
+        inline void AddVertexInput(const VertexInputDescription& inputDescription) { vertexInputs.push_back(inputDescription); }
 
         inline uint32_t GetDynamicStatesCount() const { return (uint32_t)dynamicStates.size(); }
         inline const VkDynamicState* GetDynamicStates() const { return dynamicStates.data(); }
@@ -67,6 +133,7 @@ namespace Vurl {
 
         VkPipelineLayout vkPipelineLayout = VK_NULL_HANDLE;
 
+        std::vector<VertexInputDescription> vertexInputs{};
         std::vector<VkDynamicState> dynamicStates{};
         VkPrimitiveTopology vkPrimitiveTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         VkCullModeFlagBits vkCullMode = VK_CULL_MODE_BACK_BIT;
