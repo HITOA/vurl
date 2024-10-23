@@ -16,9 +16,10 @@ if (VURL_BUILD_EXAMPLES)
     set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/glfw)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/glm)
 
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/base)
-
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/triangle)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/forward_suzanne)
     
 endif()

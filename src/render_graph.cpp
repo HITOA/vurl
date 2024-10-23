@@ -752,7 +752,7 @@ bool Vurl::RenderGraph::ExecuteGraphicsPassGroup(GraphicsPassGroup* group, VkCom
         renderPassBeginInfo.framebuffer = group->framebuffers[frameIndex % group->framebuffers.size()];
     renderPassBeginInfo.renderArea.offset = { (int)group->viewport.x, (int)group->viewport.y };
     renderPassBeginInfo.renderArea.extent = { (uint32_t)group->viewport.width, (uint32_t)group->viewport.height };
-
+    
     VkClearValue clearColor = {{{ 0.0f, 0.0f, 0.0f, 1.0f }}};
     renderPassBeginInfo.clearValueCount = 1;
     renderPassBeginInfo.pClearValues = &clearColor;

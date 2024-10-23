@@ -32,6 +32,12 @@ public:
         std::shared_ptr<Vurl::Shader> vertShader = CreateShaderFromFile("vert.spv", context->GetDevice());
         std::shared_ptr<Vurl::Shader> fragShader = CreateShaderFromFile("frag.spv", context->GetDevice());
 
+        Vertex vertices[3] = { 
+            { { 0.0f, -0.5f }, { 1.0f, 0.0f, 0.0f } },
+            { { 0.5f, 0.5f }, { 0.0f, 1.0f, 0.0f } },
+            { { -0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f } }
+        };
+
         Vurl::VertexInputDescription inputDescription{
             { 0, Vurl::VertexInputAttributeFormat::Vector2 }, //Position
             { 1, Vurl::VertexInputAttributeFormat::Vector3 }  //Color
@@ -53,12 +59,6 @@ public:
         vertexBuffer->SetSliceCount(1);
         vertexBuffer->SetResourceSlice(vertexBufferSlice, 0);
 
-        Vertex vertices[3] = { 
-            { { 0.0f, -0.5f }, { 1.0f, 0.0f, 0.0f } },
-            { { 0.5f, 0.5f }, { 0.0f, 1.0f, 0.0f } },
-            { { -0.5f, 0.5f }, { 0.0f, 0.0f, 1.0f } }
-        };
-
         vertexBufferSlice->size = sizeof(vertices);
         vertexBufferSlice->usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         
@@ -74,7 +74,7 @@ public:
             vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
             vkCmdDraw(commandBuffer, 3, 1, 0, 0);
         });
-
+        
         graph->Build();
     }
 

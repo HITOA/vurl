@@ -102,6 +102,15 @@ namespace Vurl {
         inline uint32_t GetVertexInputCount() const { return vertexInputs.size(); }
         inline const VertexInputDescription& GetVertexInput(uint32_t idx) const { return vertexInputs[idx]; }
         inline void AddVertexInput(const VertexInputDescription& inputDescription) { vertexInputs.push_back(inputDescription); }
+        
+        inline void AddPushConstantRange(VkShaderStageFlags stage, uint32_t offset, uint32_t size) {
+            pushConstantRanges.emplace_back(stage, offset, size);
+        }
+        
+        template<typename T>
+        inline void AddPushConstantRange(VkShaderStageFlags stage, uint32_t offset = 0) {
+            AddPushConstantRange(stage, offset, sizeof(T));
+        }
 
         inline uint32_t GetDynamicStatesCount() const { return (uint32_t)dynamicStates.size(); }
         inline const VkDynamicState* GetDynamicStates() const { return dynamicStates.data(); }
@@ -139,6 +148,7 @@ namespace Vurl {
         VkPipelineLayout vkPipelineLayout = VK_NULL_HANDLE;
 
         std::vector<VertexInputDescription> vertexInputs{};
+        std::vector<VkPushConstantRange> pushConstantRanges{};
         std::vector<VkDynamicState> dynamicStates{};
         VkPrimitiveTopology vkPrimitiveTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         VkCullModeFlagBits vkCullMode = VK_CULL_MODE_BACK_BIT;

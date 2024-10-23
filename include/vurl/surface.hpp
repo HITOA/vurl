@@ -28,6 +28,9 @@ namespace Vurl {
         inline void SetRelaxed(bool enable) { relaxed = enable; }
         inline bool IsVSyncRelaxed() const { return relaxed; }
 
+        inline uint32_t GetWidth() const { return width; }
+        inline uint32_t GetHeight() const { return height; }
+
     private:
         VkSurfaceFormatKHR SelectSwapSurfaceFormat(VkSurfaceFormatKHR* formats, uint32_t formatCount);
         VkPresentModeKHR SelectSwapPresentMode(VkPresentModeKHR* presentModes, uint32_t presentModeCount);
