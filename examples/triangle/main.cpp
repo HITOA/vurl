@@ -66,7 +66,7 @@ public:
 
         std::shared_ptr<Vurl::GraphicsPass> pass = graph->CreateGraphicsPass("Triangle Pass", graphicsPipeline);
         pass->AddColorAttachment(surface->GetBackBuffer());
-        pass->SetClearAttachment(surface->GetBackBuffer());
+        pass->ClearAttachment(0, VkClearColorValue{ 0.0f, 0.0f, 0.0f, 1.0f });
         pass->AddBufferInput(vertexBuffer);
         pass->SetRenderingCallback([vertexBuffer](VkCommandBuffer commandBuffer, uint32_t frameIndex){
             VkBuffer vertexBuffers[] = { vertexBuffer->GetResourceSlice(frameIndex)->vkBuffer };

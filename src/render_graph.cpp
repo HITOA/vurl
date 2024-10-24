@@ -121,6 +121,62 @@ void Vurl::RenderGraph::AddExternalTexture(std::shared_ptr<Resource<Texture>> te
     textures.push_back(texture);
 }
 
+void Vurl::RenderGraph::CommitTexture(std::shared_ptr<Resource<Texture>> texture, const uint8_t* initialData, uint32_t size) {
+    if (texture->IsTransient())
+        return;
+
+    for (uint32_t i = 0; i < texture->GetSliceCount(); ++i) {
+        std::shared_ptr<Texture> slice = texture->GetResourceSlice(i);
+        
+        VkExtent3D extent{};
+
+        if (slice->sizeClass == TextureSizeClass::SwapchainRelative) {
+            slice->width = surface->GetWidth();
+            slice->height = surface->GetHeight();
+            slice->depth = 1;
+        }
+
+        extent.width = slice->width;
+        extent.height = slice->height;
+        extent.depth = slice->depth;
+
+        VkImageCreateInfo imageCreateInfo{};
+        imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        imageCreateInfo.imageType = slice->vkImageType;
+        imageCreateInfo.format = slice->vkFormat;
+        imageCreateInfo.extent = extent;
+        imageCreateInfo.mipLevels = 1;
+        imageCreateInfo.arrayLayers = 1;
+        imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        imageCreateInfo.tiling = slice->vkImageTiling;
+        imageCreateInfo.usage = slice->usage;
+        imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+        VmaAllocationCreateInfo allocCreateInfo{};
+        allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+
+        vmaCreateImage(context->GetAllocator(), &imageCreateInfo, &allocCreateInfo, &slice->vkImage, &slice->allocation, nullptr);
+
+        VkImageViewCreateInfo imageViewCreateInfo{};
+        imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        imageViewCreateInfo.image = slice->vkImage;
+        imageViewCreateInfo.viewType = slice->vkImageViewType;
+        imageViewCreateInfo.format = slice->vkFormat;
+        imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+        imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+        imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+        imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+        imageViewCreateInfo.subresourceRange.aspectMask = slice->aspectMask;
+        imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+        imageViewCreateInfo.subresourceRange.levelCount = 1;
+        imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+        imageViewCreateInfo.subresourceRange.layerCount = 1;
+
+        vkCreateImageView(context->GetDevice(), &imageViewCreateInfo, nullptr, &slice->vkImageView);
+    }
+}
+
 std::shared_ptr<Vurl::GraphicsPass> Vurl::RenderGraph::CreateGraphicsPass(const std::string& name, std::shared_ptr<GraphicsPipeline> pipeline) {
     std::shared_ptr<GraphicsPass> pass = std::make_shared<GraphicsPass>(name, pipeline, this);
     passes.push_back(pass);
@@ -334,32 +390,56 @@ bool Vurl::RenderGraph::BuildGraphicsPassGroup(uint32_t firstPass) {
 
 bool Vurl::RenderGraph::BuildGraphicsPassGroupRenderPass(GraphicsPassGroup* group) {
     uint32_t i = 0;
+    std::unordered_map<TextureHandle, VkClearValue> clearValues{};
+
+    VkAttachmentDescription defaultAttachmentDescription{};
+    defaultAttachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    defaultAttachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    defaultAttachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    defaultAttachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    defaultAttachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    defaultAttachmentDescription.finalLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+
     for (const auto& pass : group->passes) {
         for (uint32_t j = 0; j < pass->GetColorAttachmentCount(); ++j) {
             TextureHandle h = pass->GetColorAttachment(j);
             if (h == backBufferTexture)
                 group->minSwapchainColorAttachmentSubpassIndex = std::min(group->minSwapchainColorAttachmentSubpassIndex, i);
 
-            auto r = group->attachmentDescriptions.emplace(h, VkAttachmentDescription{});
-            VkAttachmentDescription& description = r.first->second;
-
-            if (r.second)
-                description.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            auto r = group->attachmentDescriptions.emplace(h, defaultAttachmentDescription);
         }
 
         for (uint32_t j = 0; j < pass->GetInputAttachmentCount(); ++j) {
             TextureHandle h = pass->GetInputAttachment(j);
-            auto r = group->attachmentDescriptions.emplace(h, VkAttachmentDescription{});
+            auto r = group->attachmentDescriptions.emplace(h, defaultAttachmentDescription);
             VkAttachmentDescription& description = r.first->second;
 
             if (r.second || description.loadOp == VK_ATTACHMENT_LOAD_OP_DONT_CARE)
                 description.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
         }
 
-        if (pass->GetClearAttachment() != VURL_NULL_HANDLE) {
-            if (group->attachmentDescriptions.count(pass->GetClearAttachment()) > 0) {
-                group->attachmentDescriptions[pass->GetClearAttachment()].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        if (pass->GetDepthStencilAttachment() != VURL_NULL_HANDLE) {
+            TextureHandle h = pass->GetDepthStencilAttachment();
+            auto r = group->attachmentDescriptions.emplace(h, defaultAttachmentDescription);
+            VkAttachmentDescription& description = r.first->second;
+            
+            VkClearValue clearValue{};
+            clearValue.depthStencil = { 1.0f, 0 };
+            clearValues[h] = clearValue;
+
+            if (r.second) {
+                description.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+                description.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             }
+        }
+
+        for (uint32_t j = 0; j < pass->GetClearAttachmentInfoCount(); ++j) {
+            std::pair<uint32_t, VkClearColorValue> clearAttachmentInfo = pass->GetClearAttachmentInfo(j);
+            TextureHandle h = pass->GetColorAttachment(clearAttachmentInfo.first);
+            group->attachmentDescriptions[h].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            VkClearValue clearValue{};
+            clearValue.color = clearAttachmentInfo.second;
+            clearValues[h] = clearValue;
         }
 
         ++i;
@@ -379,18 +459,15 @@ bool Vurl::RenderGraph::BuildGraphicsPassGroupRenderPass(GraphicsPassGroup* grou
         std::shared_ptr<Resource<Texture>> texture = textures[h];
 
         std::shared_ptr<Texture> slice = texture->GetResourceSlice(0);
+        
+        if (clearValues.count(h))
+            group->clearValues.push_back(clearValues[h]);
 
         minWidth = minWidth > slice->width ? slice->width : minWidth;
         minHeight = minHeight > slice->height ? slice->height : minHeight;
 
         description.format = slice->vkFormat;
         description.samples = VK_SAMPLE_COUNT_1_BIT;
-
-        description.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        description.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        description.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        description.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        description.finalLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
 
         if (h == backBufferTexture)
             description.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
@@ -411,6 +488,7 @@ bool Vurl::RenderGraph::BuildGraphicsPassGroupRenderPass(GraphicsPassGroup* grou
     group->scissor.extent = { minWidth, minHeight };
 
     std::vector<std::vector<VkAttachmentReference>> subpassesAttachmentReferences{};
+    std::vector<VkAttachmentReference> subpassesDepthStencilAttachmentReferences{};
     std::vector<VkSubpassDependency> subpassDependencies{};
     std::vector<VkSubpassDescription> subpassDescriptions{};
 
@@ -439,6 +517,24 @@ bool Vurl::RenderGraph::BuildGraphicsPassGroupRenderPass(GraphicsPassGroup* grou
         subpass.pColorAttachments = attachmentReferences.data();
         subpass.inputAttachmentCount = pass->GetInputAttachmentCount();
         subpass.pInputAttachments = attachmentReferences.data() + pass->GetColorAttachmentCount();
+
+        if (pass->GetDepthStencilAttachment() != VURL_NULL_HANDLE) {
+            VkAttachmentReference depthStencilAttachmentReference = subpassesDepthStencilAttachmentReferences.emplace_back();
+            depthStencilAttachmentReference.attachment = handleToAttachmentIndex[pass->GetDepthStencilAttachment()];
+            depthStencilAttachmentReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+            subpass.pDepthStencilAttachment = &depthStencilAttachmentReference;
+
+            VkSubpassDependency dependency{};
+            dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+            dependency.dstSubpass = i;
+            dependency.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+            dependency.srcAccessMask = 0;
+            dependency.dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+            dependency.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+            subpassDependencies.push_back(dependency);
+        }
 
         if (group->minSwapchainColorAttachmentSubpassIndex == i) {
             VkSubpassDependency dependency{};
@@ -531,6 +627,7 @@ bool Vurl::RenderGraph::BuildGraphicsPassGroupGraphicsPipelines(GraphicsPassGrou
         VkPipelineViewportStateCreateInfo viewportState{};
         VkPipelineRasterizationStateCreateInfo rasterizer{};
         VkPipelineMultisampleStateCreateInfo multisampling{};
+        VkPipelineDepthStencilStateCreateInfo depthStencil{};
         std::vector<VkPipelineColorBlendAttachmentState> blendAttachmentStates{};
         VkPipelineColorBlendStateCreateInfo colorBlending{};
         VkPipelineLayout pipelineLayout{};
@@ -608,6 +705,22 @@ bool Vurl::RenderGraph::BuildGraphicsPassGroupGraphicsPipelines(GraphicsPassGrou
         graphicsPipelineCreateInfo.multisampling.alphaToCoverageEnable = VK_FALSE;
         graphicsPipelineCreateInfo.multisampling.alphaToOneEnable = VK_FALSE;
 
+        graphicsPipelineCreateInfo.depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+        graphicsPipelineCreateInfo.depthStencil.depthTestEnable = VK_FALSE;
+        graphicsPipelineCreateInfo.depthStencil.depthWriteEnable = VK_FALSE;
+        graphicsPipelineCreateInfo.depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+        graphicsPipelineCreateInfo.depthStencil.depthBoundsTestEnable = VK_FALSE;
+        graphicsPipelineCreateInfo.depthStencil.minDepthBounds = 0.0f;
+        graphicsPipelineCreateInfo.depthStencil.maxDepthBounds = 1.0f;
+        graphicsPipelineCreateInfo.depthStencil.stencilTestEnable = VK_FALSE;
+        graphicsPipelineCreateInfo.depthStencil.front = {};
+        graphicsPipelineCreateInfo.depthStencil.back = {};
+
+        if (pass->GetDepthStencilAttachment() != VURL_NULL_HANDLE) {
+            graphicsPipelineCreateInfo.depthStencil.depthTestEnable = VK_TRUE;
+            graphicsPipelineCreateInfo.depthStencil.depthWriteEnable = VK_TRUE;
+        }
+
         for (uint32_t i = 0; i < pass->GetColorAttachmentCount(); ++i) {
             VkPipelineColorBlendAttachmentState colorBlendAttachment{};
             colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -660,7 +773,7 @@ bool Vurl::RenderGraph::BuildGraphicsPassGroupGraphicsPipelines(GraphicsPassGrou
         pipelineCreateInfo.pViewportState = &graphicsPipelineCreateInfo.viewportState;
         pipelineCreateInfo.pRasterizationState = &graphicsPipelineCreateInfo.rasterizer;
         pipelineCreateInfo.pMultisampleState = &graphicsPipelineCreateInfo.multisampling;
-        pipelineCreateInfo.pDepthStencilState = nullptr;
+        pipelineCreateInfo.pDepthStencilState = &graphicsPipelineCreateInfo.depthStencil;
         pipelineCreateInfo.pColorBlendState = &graphicsPipelineCreateInfo.colorBlending;
         pipelineCreateInfo.pDynamicState = &graphicsPipelineCreateInfo.dynamicState;
         pipelineCreateInfo.layout = graphicsPipelineCreateInfo.pipelineLayout;
@@ -752,10 +865,8 @@ bool Vurl::RenderGraph::ExecuteGraphicsPassGroup(GraphicsPassGroup* group, VkCom
         renderPassBeginInfo.framebuffer = group->framebuffers[frameIndex % group->framebuffers.size()];
     renderPassBeginInfo.renderArea.offset = { (int)group->viewport.x, (int)group->viewport.y };
     renderPassBeginInfo.renderArea.extent = { (uint32_t)group->viewport.width, (uint32_t)group->viewport.height };
-    
-    VkClearValue clearColor = {{{ 0.0f, 0.0f, 0.0f, 1.0f }}};
-    renderPassBeginInfo.clearValueCount = 1;
-    renderPassBeginInfo.pClearValues = &clearColor;
+    renderPassBeginInfo.clearValueCount = (uint32_t)group->clearValues.size();
+    renderPassBeginInfo.pClearValues = group->clearValues.data();
 
     vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 

@@ -5,10 +5,10 @@
 #include <vector>
 #include <iostream>
 
-bool Vurl::RenderingContext::CreateInstance(const VkApplicationInfo* applicationInfo, const char** instanceExtensions, 
+Vurl::VurlResult Vurl::RenderingContext::CreateInstance(const VkApplicationInfo* applicationInfo, const char** instanceExtensions, 
         uint32_t instanceExtensionCount, bool enableValidationLayer) {
     if (applicationInfo && volkGetInstanceVersion() < applicationInfo->apiVersion)
-        return false;
+        return VURL_ERROR_UNSUPPORTED_INSTANCE_VERSION;
     
     VkApplicationInfo defaultApplicationInfo{};
     defaultApplicationInfo.sType == VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -34,7 +34,7 @@ bool Vurl::RenderingContext::CreateInstance(const VkApplicationInfo* application
 
     for (uint32_t i = 0; i < instanceExtensionCount; ++i)
         if (!HasExtension(extensions.data(), extensionCount, instanceExtensions[i]))
-            return false;
+            return VURL_ERROR_UNSUPPORTED_INSTANCE_EXTENSION;
 
     enabledInstanceExtensions.resize(instanceExtensionCount);
     for (uint32_t i = 0; i < instanceExtensionCount; ++i)
@@ -61,11 +61,11 @@ bool Vurl::RenderingContext::CreateInstance(const VkApplicationInfo* application
     createInfo.ppEnabledLayerNames = enabledValidationLayers.data();
 
     if (vkCreateInstance(&createInfo, nullptr, &vkInstance) != VK_SUCCESS)
-        return false;
+        return VURL_ERROR_INSTANCE_CREATION_FAILED;
 
     volkLoadInstance(vkInstance);
 
-    return true;
+    return VURL_SUCCESS;
 }
 
 void Vurl::RenderingContext::DestroyInstance() {
@@ -76,9 +76,9 @@ void Vurl::RenderingContext::DestroyInstance() {
     vkInstance = VK_NULL_HANDLE;
 }
 
-bool Vurl::RenderingContext::CreateDevice(VkSurfaceKHR surface, VkPhysicalDevice device) {
+Vurl::VurlResult Vurl::RenderingContext::CreateDevice(VkSurfaceKHR surface, VkPhysicalDevice device) {
     if (vkInstance == VK_NULL_HANDLE)
-        return false;
+        return VURL_ERROR_MISSING_INSTANCE;
     
     std::vector<const char*> requiredDeviceExtensions{};
     requiredDeviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
@@ -91,7 +91,7 @@ bool Vurl::RenderingContext::CreateDevice(VkSurfaceKHR surface, VkPhysicalDevice
         uint32_t deviceCount = 0;
         vkEnumeratePhysicalDevices(vkInstance, &deviceCount, nullptr);
         if (deviceCount == 0)
-            return false; //No GPU found with vulkan support
+            return VURL_ERROR_NO_PHYSICAL_DEVICE;
 
         std::vector<VkPhysicalDevice> devices(deviceCount);
         vkEnumeratePhysicalDevices(vkInstance, &deviceCount, devices.data());
@@ -107,10 +107,10 @@ bool Vurl::RenderingContext::CreateDevice(VkSurfaceKHR surface, VkPhysicalDevice
         }
 
         if (selectedDevice == VK_NULL_HANDLE)
-            return false; //Could not find suitable physical device.
+            return VURL_ERROR_NO_PHYSICAL_DEVICE; //Could not find suitable physical device.
     } else {
         if (RatePhysicalDevice(surface, selectedDevice, requiredDeviceExtensions.data(), (uint32_t)requiredDeviceExtensions.size()) == -1)
-            return false; //Given physical device is not suitable.
+            return VURL_ERROR_NO_PHYSICAL_DEVICE; //Given physical device is not suitable.
     }
 
     enabledDeviceExtensions = requiredDeviceExtensions;
@@ -138,7 +138,7 @@ bool Vurl::RenderingContext::CreateDevice(VkSurfaceKHR surface, VkPhysicalDevice
     createInfo.ppEnabledExtensionNames = enabledDeviceExtensions.data(); 
 
     if (vkCreateDevice(selectedDevice, &createInfo, nullptr, &vkDevice) != VK_SUCCESS)
-        return false; //Unable to create logical device.
+        return VURL_ERROR_DEVICE_CREATION_FAILED; //Unable to create logical device.
 
     vkPhysicalDevice = selectedDevice;
     queueInfo = selectedDeviceQueueinfo;
@@ -191,7 +191,7 @@ bool Vurl::RenderingContext::CreateDevice(VkSurfaceKHR surface, VkPhysicalDevice
 
     vmaCreateAllocator(&allocatorCreateInfo, &vmaAllocator);
 
-    return true;
+    return VURL_SUCCESS;
 }
 
 void Vurl::RenderingContext::DestroyDevice() {

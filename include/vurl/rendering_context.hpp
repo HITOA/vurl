@@ -1,21 +1,35 @@
 #pragma once
 
 #include <vurl/vulkan_header.hpp>
-#include <vurl/vulkan_def.hpp>
+#include <vurl/error.hpp>
 #include <vector>
 
 namespace Vurl {
+    enum QueueIndices {
+        QUEUE_INDEX_GRAPHICS = 0,
+        QUEUE_INDEX_COMPUTE,
+        QUEUE_INDEX_TRANSFER,
+        QUEUE_INDEX_VIDEO_DECODE,
+        QUEUE_INDEX_VIDEO_ENCODE,
+        QUEUE_INDEX_MAX
+    };
+
+    struct QueueInfo {
+        VkQueue queues[QUEUE_INDEX_MAX];
+        uint32_t familyIndices[QUEUE_INDEX_MAX];
+        uint32_t counts[QUEUE_INDEX_MAX];
+    };
 
     class RenderingContext {
     public:
         RenderingContext() = default;
         ~RenderingContext() = default;
 
-        bool CreateInstance(const VkApplicationInfo* applicationInfo, const char** instanceExtensions, 
+        VurlResult CreateInstance(const VkApplicationInfo* applicationInfo, const char** instanceExtensions, 
                 uint32_t instanceExtensionCount, bool enableValidationLayer = false);
         void DestroyInstance();
-
-        bool CreateDevice(VkSurfaceKHR surface, VkPhysicalDevice device = VK_NULL_HANDLE);
+        
+        VurlResult CreateDevice(VkSurfaceKHR surface, VkPhysicalDevice device = VK_NULL_HANDLE);
         void DestroyDevice();
 
         inline VkInstance GetInstance() const { return vkInstance; }

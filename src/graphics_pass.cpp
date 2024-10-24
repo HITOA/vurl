@@ -21,12 +21,18 @@ void Vurl::GraphicsPass::AddInputAttachment(std::shared_ptr<Resource<Texture>> t
     inputAttachments.push_back(handle);
 }
 
-void Vurl::GraphicsPass::SetClearAttachment(std::shared_ptr<Resource<Texture>> texture) {
+void Vurl::GraphicsPass::SetDepthStencilAttachment(std::shared_ptr<Resource<Texture>> texture) {
     TextureHandle handle = graph->GetTextureHandle(texture);
     if (handle == VURL_NULL_HANDLE)
         return;
-    clearAttachment = handle;
+    depthStencilAttachment = handle;
 }
+
+void Vurl::GraphicsPass::ClearAttachment(uint32_t attachmentIdx, VkClearColorValue color) {
+    if (colorAttachments.size() <= attachmentIdx)
+        return;
+    clearAttachmentInfo.emplace_back(attachmentIdx, color);
+}   
 
 void Vurl::GraphicsPass::AddBufferInput(std::shared_ptr<Resource<Buffer>> buffer) {
     BufferHandle handle = graph->GetBufferHandle(buffer);

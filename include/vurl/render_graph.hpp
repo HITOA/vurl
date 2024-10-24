@@ -24,6 +24,7 @@ namespace Vurl {
             std::unordered_map<TextureHandle, VkAttachmentDescription> attachmentDescriptions{};
             std::vector<VkPipeline> pipelines{};
             std::vector<VkFramebuffer> framebuffers{};
+            std::vector<VkClearValue> clearValues{};
             VkRenderPass vkRenderPass = VK_NULL_HANDLE;
             VkViewport viewport{};
             VkRect2D scissor{};
@@ -54,6 +55,7 @@ namespace Vurl {
 
         TextureHandle GetTextureHandle(std::shared_ptr<Resource<Texture>> texture);
         void AddExternalTexture(std::shared_ptr<Resource<Texture>> texture);
+        void CommitTexture(std::shared_ptr<Resource<Texture>> texture, const uint8_t* initialData = nullptr, uint32_t size = 0);
 
         template<typename T>
         std::shared_ptr<T> CreateTexture(const std::string& name, bool transient = true) {

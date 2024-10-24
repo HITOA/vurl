@@ -3,6 +3,7 @@
 #include <volk.h>
 #include <vurl/wsi/wsi.hpp>
 #include <vurl/texture.hpp>
+#include <vurl/error.hpp>
 #include <memory>
 
 namespace Vurl {
@@ -12,10 +13,10 @@ namespace Vurl {
         Surface(std::shared_ptr<WSI> wsi) : wsi{ wsi } {};
         ~Surface() = default;
 
-        bool CreateSurface(VkInstance instance);
+        VurlResult CreateSurface(VkInstance instance);
         void DestroySurface();
 
-        bool CreateSwapchain(VkPhysicalDevice physicalDevice, VkDevice device, uint32_t width, uint32_t height);
+        VurlResult CreateSwapchain(VkPhysicalDevice physicalDevice, VkDevice device, uint32_t width, uint32_t height);
         void DestroySwapchain();
 
         inline VkSurfaceKHR GetSurfaceKHR() const { return vkSurface; }

@@ -64,9 +64,22 @@ public:
 
         vertexBuffer = LoadMesh("suzanne.obj", graph);
 
+        std::shared_ptr<Vurl::Resource<Vurl::Texture>> depthStencil = graph->CreateTexture<Vurl::Resource<Vurl::Texture>>("Depth Stencil", false);
+        std::shared_ptr<Vurl::Texture> depthStencilSlice = std::make_shared<Vurl::Texture>();
+        depthStencil->SetSliceCount(1);
+        depthStencil->SetResourceSlice(depthStencilSlice, 0);
+
+        depthStencilSlice->vkFormat = VK_FORMAT_D32_SFLOAT;
+        depthStencilSlice->sizeClass = Vurl::TextureSizeClass::SwapchainRelative;
+        depthStencilSlice->usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        depthStencilSlice->aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+
+        graph->CommitTexture(depthStencil);
+
         std::shared_ptr<Vurl::GraphicsPass> pass = graph->CreateGraphicsPass("Triangle Pass", graphicsPipeline);
         pass->AddColorAttachment(surface->GetBackBuffer());
-        pass->SetClearAttachment(surface->GetBackBuffer());
+        pass->ClearAttachment(0, VkClearColorValue{ 0.0f, 0.0f, 0.0f, 1.0f });
+        pass->SetDepthStencilAttachment(depthStencil);
         pass->AddBufferInput(vertexBuffer);
         pass->SetRenderingCallback(std::bind(&ForwardSuzanneExample::Draw, this, std::placeholders::_1, std::placeholders::_2));
         

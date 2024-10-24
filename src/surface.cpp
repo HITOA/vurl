@@ -2,17 +2,17 @@
 #include <algorithm>
 #include <vector>
 
-bool Vurl::Surface::CreateSurface(VkInstance instance) {
+Vurl::VurlResult Vurl::Surface::CreateSurface(VkInstance instance) {
     vkSurface = wsi->CreateSurface(instance);
     vkInstance = instance;
-    return true;
+    return VURL_SUCCESS;
 }
 
 void Vurl::Surface::DestroySurface() {
     wsi->DestroySurface(vkInstance, vkSurface);
 }
 
-bool Vurl::Surface::CreateSwapchain(VkPhysicalDevice physicalDevice, VkDevice device, uint32_t width, uint32_t height) {
+Vurl::VurlResult Vurl::Surface::CreateSwapchain(VkPhysicalDevice physicalDevice, VkDevice device, uint32_t width, uint32_t height) {
     VkSurfaceCapabilitiesKHR capabilities;
 
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, vkSurface, &capabilities);
@@ -56,7 +56,7 @@ bool Vurl::Surface::CreateSwapchain(VkPhysicalDevice physicalDevice, VkDevice de
     swapchainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
 
     if (vkCreateSwapchainKHR(device, &swapchainCreateInfo, nullptr, &vkSwapchain) != VK_SUCCESS)
-        return false;
+        return VURL_ERROR_SWAPCHAIN_CREATION_FAILED;
 
     vkGetSwapchainImagesKHR(device, vkSwapchain, &swapchainImageCount, nullptr);
     renderTexture = std::make_shared<Resource<Texture>>("Back Buffer");
@@ -101,7 +101,7 @@ bool Vurl::Surface::CreateSwapchain(VkPhysicalDevice physicalDevice, VkDevice de
     this->height = extent.height;
     this->format = selectedFormat.format;
 
-    return true;
+    return VURL_SUCCESS;
 }
 
 void Vurl::Surface::DestroySwapchain() {
