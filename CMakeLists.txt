@@ -20,7 +20,6 @@ add_library(vurl STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/src/shader.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/surface.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/vma.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/vurl.cpp
 )
 
 if(VURL_BUILD_WSI_WIN32)
@@ -41,7 +40,11 @@ endif()
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/volk)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/VulkanMemoryAllocator)
 
-target_link_libraries(vurl PUBLIC volk GPUOpen::VulkanMemoryAllocator)
+set(SPIRV_REFLECT_EXECUTABLE OFF)
+set(SPIRV_REFLECT_STATIC_LIB ON)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/SPIRV-Reflect)
+
+target_link_libraries(vurl PUBLIC volk GPUOpen::VulkanMemoryAllocator spirv-reflect-static)
 target_include_directories(vurl PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/examples)

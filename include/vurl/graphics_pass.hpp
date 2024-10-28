@@ -54,9 +54,7 @@ namespace Vurl {
         };
 
     private:
-        std::string name;
         std::shared_ptr<GraphicsPipeline> graphicsPipeline = nullptr;
-        RenderGraph* graph;
 
         std::vector<TextureHandle> colorAttachments{};
         std::vector<TextureHandle> inputAttachments{};

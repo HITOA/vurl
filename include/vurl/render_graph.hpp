@@ -69,6 +69,11 @@ namespace Vurl {
         }
         
         std::shared_ptr<GraphicsPass> CreateGraphicsPass(const std::string& name, std::shared_ptr<GraphicsPipeline> pipeline);
+        std::shared_ptr<Pass> GetPassByName(const std::string& name);
+        template<typename T>
+        inline std::shared_ptr<T> GetPassByName(const std::string& name) {
+            return static_pointer_cast<T, Pass>(GetPassByName(name));
+        }
 
         void Build();
         void Destroy();
@@ -95,6 +100,8 @@ namespace Vurl {
         void DestroySynchronizationObjects();
 
         bool ExecuteGraphicsPassGroup(GraphicsPassGroup* group, VkCommandBuffer commandBuffer, uint32_t swapchainImageIndex);
+        VkCommandBuffer BeginTransientCommandBuffer();
+        void SubmitAndEndTransientCommandBuffer(VkCommandBuffer commandBuffer);
 
     private:
         bool complete = false;

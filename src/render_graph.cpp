@@ -55,19 +55,7 @@ void Vurl::RenderGraph::CommitBuffer(std::shared_ptr<Resource<Buffer>> buffer, c
         vmaCreateBuffer(context->GetAllocator(), &stagingBufferCreateInfo, &stagingAllocCreateInfo, &stagingBuffer, &stagingBufferAllocation, nullptr);
         vmaCopyMemoryToAllocation(context->GetAllocator(), initialData, stagingBufferAllocation, 0, size);
 
-        VkCommandBufferAllocateInfo commandBufferAllocateInfo{};
-        commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        commandBufferAllocateInfo.commandPool = transientCommandPool;
-        commandBufferAllocateInfo.commandBufferCount = 1;
-
-        vkAllocateCommandBuffers(context->GetDevice(), &commandBufferAllocateInfo, &transferTransientCommandBuffer);
-
-        VkCommandBufferBeginInfo beginInfo{};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-        vkBeginCommandBuffer(transferTransientCommandBuffer, &beginInfo);
+        transferTransientCommandBuffer = BeginTransientCommandBuffer();
     }
 
     for (uint32_t i = 0; i < buffer->GetSliceCount(); ++i) {
@@ -83,7 +71,7 @@ void Vurl::RenderGraph::CommitBuffer(std::shared_ptr<Resource<Buffer>> buffer, c
         allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
 
         vmaCreateBuffer(context->GetAllocator(), &bufferCreateInfo, &allocCreateInfo, &slice->vkBuffer, &slice->allocation, nullptr);
-
+        
         if (initialData != nullptr) {
             copyRegion.size = std::min((VkDeviceSize)slice->size, (VkDeviceSize)size);
             vkCmdCopyBuffer(transferTransientCommandBuffer, stagingBuffer, slice->vkBuffer, 1, &copyRegion);
@@ -91,22 +79,10 @@ void Vurl::RenderGraph::CommitBuffer(std::shared_ptr<Resource<Buffer>> buffer, c
     }
 
     if (initialData != nullptr) {
-        vkEndCommandBuffer(transferTransientCommandBuffer);
-
-        VkSubmitInfo submitInfo{};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &transferTransientCommandBuffer;
-
-        vkQueueSubmit(context->GetQueueInfo().queues[QUEUE_INDEX_GRAPHICS], 1, &submitInfo, VK_NULL_HANDLE);
-        vkQueueWaitIdle(context->GetQueueInfo().queues[QUEUE_INDEX_GRAPHICS]);
-
-        vkFreeCommandBuffers(context->GetDevice(), transientCommandPool, 1, &transferTransientCommandBuffer);
-
+        SubmitAndEndTransientCommandBuffer(transferTransientCommandBuffer);
         vmaDestroyBuffer(context->GetAllocator(), stagingBuffer, stagingBufferAllocation);
     }
 }
-
 
 Vurl::TextureHandle Vurl::RenderGraph::GetTextureHandle(std::shared_ptr<Resource<Texture>> texture) {
     for (uint32_t i = 0; i < textures.size(); ++i)
@@ -181,6 +157,14 @@ std::shared_ptr<Vurl::GraphicsPass> Vurl::RenderGraph::CreateGraphicsPass(const 
     std::shared_ptr<GraphicsPass> pass = std::make_shared<GraphicsPass>(name, pipeline, this);
     passes.push_back(pass);
     return pass;
+}
+
+std::shared_ptr<Vurl::Pass> Vurl::RenderGraph::GetPassByName(const std::string& name) {
+    for (uint32_t i = 0; i < passes.size(); ++i) {
+        if (passes[i]->GetName().compare(name) == 0)
+            return passes[i];
+    }
+    return nullptr;
 }
 
 void Vurl::RenderGraph::Build() {
@@ -398,7 +382,7 @@ bool Vurl::RenderGraph::BuildGraphicsPassGroupRenderPass(GraphicsPassGroup* grou
     defaultAttachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     defaultAttachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     defaultAttachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    defaultAttachmentDescription.finalLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+    defaultAttachmentDescription.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
     for (const auto& pass : group->passes) {
         for (uint32_t j = 0; j < pass->GetColorAttachmentCount(); ++j) {
@@ -414,7 +398,8 @@ bool Vurl::RenderGraph::BuildGraphicsPassGroupRenderPass(GraphicsPassGroup* grou
             auto r = group->attachmentDescriptions.emplace(h, defaultAttachmentDescription);
             VkAttachmentDescription& description = r.first->second;
 
-            if (r.second || description.loadOp == VK_ATTACHMENT_LOAD_OP_DONT_CARE)
+            if ((r.second || description.loadOp == VK_ATTACHMENT_LOAD_OP_DONT_CARE) &&
+                description.initialLayout != VK_IMAGE_LAYOUT_UNDEFINED)
                 description.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
         }
 
@@ -462,6 +447,8 @@ bool Vurl::RenderGraph::BuildGraphicsPassGroupRenderPass(GraphicsPassGroup* grou
         
         if (clearValues.count(h))
             group->clearValues.push_back(clearValues[h]);
+        else
+            group->clearValues.emplace_back();
 
         minWidth = minWidth > slice->width ? slice->width : minWidth;
         minHeight = minHeight > slice->height ? slice->height : minHeight;
@@ -507,7 +494,7 @@ bool Vurl::RenderGraph::BuildGraphicsPassGroupRenderPass(GraphicsPassGroup* grou
             TextureHandle h = pass->GetInputAttachment(i);
             VkAttachmentReference attachmentReference{};
             attachmentReference.attachment = handleToAttachmentIndex[h];
-            attachmentReference.layout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
+            attachmentReference.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             attachmentReferences.push_back(attachmentReference);
         }
 
@@ -524,7 +511,7 @@ bool Vurl::RenderGraph::BuildGraphicsPassGroupRenderPass(GraphicsPassGroup* grou
             depthStencilAttachmentReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
             subpass.pDepthStencilAttachment = &depthStencilAttachmentReference;
-
+            
             VkSubpassDependency dependency{};
             dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
             dependency.dstSubpass = i;
@@ -878,4 +865,38 @@ bool Vurl::RenderGraph::ExecuteGraphicsPassGroup(GraphicsPassGroup* group, VkCom
     vkCmdEndRenderPass(commandBuffer);
 
     return true;
+}
+
+VkCommandBuffer Vurl::RenderGraph::BeginTransientCommandBuffer() {
+    VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
+
+    VkCommandBufferAllocateInfo commandBufferAllocateInfo{};
+    commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    commandBufferAllocateInfo.commandPool = transientCommandPool;
+    commandBufferAllocateInfo.commandBufferCount = 1;
+
+    vkAllocateCommandBuffers(context->GetDevice(), &commandBufferAllocateInfo, &commandBuffer);
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    return commandBuffer;
+}
+
+void Vurl::RenderGraph::SubmitAndEndTransientCommandBuffer(VkCommandBuffer commandBuffer) {
+    vkEndCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    vkQueueSubmit(context->GetQueueInfo().queues[QUEUE_INDEX_GRAPHICS], 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(context->GetQueueInfo().queues[QUEUE_INDEX_GRAPHICS]);
+
+    vkFreeCommandBuffers(context->GetDevice(), transientCommandPool, 1, &commandBuffer);
 }

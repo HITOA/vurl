@@ -3,7 +3,7 @@
 
 
 Vurl::GraphicsPass::GraphicsPass(const std::string& name, std::shared_ptr<GraphicsPipeline> pipeline, RenderGraph* graph) : 
-        name{ name }, graphicsPipeline{ pipeline }, graph{ graph } {
+        Pass::Pass(name, graph), graphicsPipeline{ pipeline } {
 
 }
 

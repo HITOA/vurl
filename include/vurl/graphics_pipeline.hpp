@@ -115,6 +115,10 @@ namespace Vurl {
         inline uint32_t GetDynamicStatesCount() const { return (uint32_t)dynamicStates.size(); }
         inline const VkDynamicState* GetDynamicStates() const { return dynamicStates.data(); }
 
+        inline uint32_t GetLayoutBindingCount() const { return (uint32_t)layoutBindings.size(); }
+        inline const VkDescriptorSetLayoutBinding* GetLayoutBindings() const { return layoutBindings.data(); }
+        inline void AddLayoutBinding(VkDescriptorSetLayoutBinding layoutBinding) { layoutBindings.push_back(layoutBinding); }
+
         inline void SetPipelinePrimitiveTopology(VkPrimitiveTopology topology) { vkPrimitiveTopology = topology; }
         inline VkPrimitiveTopology GetPipelinePrimitiveTopology() const { return vkPrimitiveTopology; }
 
@@ -144,12 +148,14 @@ namespace Vurl {
         std::shared_ptr<Shader> tessellationControlShader = nullptr;
         std::shared_ptr<Shader> tessellationEvaluationShader = nullptr;
         std::shared_ptr<Shader> geometryShader = nullptr;
-
+        
+        VkDescriptorSetLayout vkDescriptorSetLayout = VK_NULL_HANDLE;
         VkPipelineLayout vkPipelineLayout = VK_NULL_HANDLE;
 
         std::vector<VertexInputDescription> vertexInputs{};
         std::vector<VkPushConstantRange> pushConstantRanges{};
         std::vector<VkDynamicState> dynamicStates{};
+        std::vector<VkDescriptorSetLayoutBinding> layoutBindings{};
         VkPrimitiveTopology vkPrimitiveTopology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         VkCullModeFlagBits vkCullMode = VK_CULL_MODE_BACK_BIT;
     };

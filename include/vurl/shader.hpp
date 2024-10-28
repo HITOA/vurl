@@ -1,6 +1,7 @@
 #pragma once
 
-#include <volk.h>
+#include <vurl/vulkan_header.hpp>
+#include <vurl/error.hpp>
 #include <string>
 
 namespace Vurl {
@@ -10,10 +11,11 @@ namespace Vurl {
         Shader(VkDevice device);
         ~Shader();
 
-        bool CreateShaderModule(const uint32_t* source, uint32_t size);
+        VurlResult CreateShaderModule(const uint32_t* source, uint32_t size);
         void DestroyShaderModule();
         inline VkShaderModule GetShaderModule() const { return vkShaderModule; }
-
+        inline SpvReflectShaderModule GetReflectShaderModule() const { return spvReflectShaderModule; }
+        
         inline void SetEntryPointName(const std::string& name) { entrypointName = name; }
         inline const char* GetEntryPointName() const { return entrypointName.c_str(); }
 
@@ -21,6 +23,7 @@ namespace Vurl {
         VkDevice vkDevice = VK_NULL_HANDLE;
 
         VkShaderModule vkShaderModule = VK_NULL_HANDLE;
+        SpvReflectShaderModule spvReflectShaderModule = {};
         std::string entrypointName = "main";
     };
 }

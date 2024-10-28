@@ -18,8 +18,6 @@ if (VURL_BUILD_EXAMPLES)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/glfw)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/glm)
 
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/base)
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/triangle)
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/forward_suzanne)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/deffered_renderer)
     
 endif()
