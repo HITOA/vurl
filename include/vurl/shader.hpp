@@ -15,10 +15,10 @@ namespace Vurl {
         void DestroyShaderModule();
         inline VkShaderModule GetShaderModule() const { return vkShaderModule; }
         inline SpvReflectShaderModule GetReflectShaderModule() const { return spvReflectShaderModule; }
-        
+
         inline void SetEntryPointName(const std::string& name) { entrypointName = name; }
         inline const char* GetEntryPointName() const { return entrypointName.c_str(); }
-
+    
     private:
         VkDevice vkDevice = VK_NULL_HANDLE;
 

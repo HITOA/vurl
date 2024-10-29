@@ -1,4 +1,5 @@
 #include <vurl/shader.hpp>
+#include <iostream>
 
 
 Vurl::Shader::Shader(VkDevice device) : vkDevice{ device } {
@@ -20,7 +21,7 @@ Vurl::VurlResult Vurl::Shader::CreateShaderModule(const uint32_t* source, uint32
     
     if (spvReflectCreateShaderModule(size, source, &spvReflectShaderModule) != SPV_REFLECT_RESULT_SUCCESS)
         return VURL_ERROR_REFLECT_SHADER_MODULE_CREATION_FAILD;
-
+    
     return VURL_SUCCESS;
 }
 

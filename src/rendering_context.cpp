@@ -40,6 +40,9 @@ Vurl::VurlResult Vurl::RenderingContext::CreateInstance(const VkApplicationInfo*
     for (uint32_t i = 0; i < instanceExtensionCount; ++i)
         enabledInstanceExtensions[i] = instanceExtensions[i];
 
+    if (enableValidationLayer)
+        enabledInstanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+
     createInfo.enabledExtensionCount = (uint32_t)enabledInstanceExtensions.size();
     createInfo.ppEnabledExtensionNames = enabledInstanceExtensions.data();
 

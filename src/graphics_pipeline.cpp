@@ -1,18 +1,12 @@
 #include <vurl/graphics_pipeline.hpp>
+#include <iostream>
 
 
 bool Vurl::GraphicsPipeline::CreatePipelineLayout() {
-    VkDescriptorSetLayoutCreateInfo layoutCreateInfo{};
-    layoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutCreateInfo.bindingCount = (uint32_t)layoutBindings.size();
-    layoutCreateInfo.pBindings = layoutBindings.data();
-
-    vkCreateDescriptorSetLayout(vkDevice, &layoutCreateInfo, nullptr, &vkDescriptorSetLayout);
-
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 1;
-    pipelineLayoutInfo.pSetLayouts = &vkDescriptorSetLayout;
+    pipelineLayoutInfo.setLayoutCount = 0;
+    pipelineLayoutInfo.pSetLayouts = nullptr;
     pipelineLayoutInfo.pushConstantRangeCount = (uint32_t)pushConstantRanges.size();
     pipelineLayoutInfo.pPushConstantRanges = pushConstantRanges.data();
 

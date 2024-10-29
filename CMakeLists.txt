@@ -37,14 +37,9 @@ if(VURL_BUILD_WSI_WAYLAND)
   set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_WAYLAND_KHR)
 endif()
 
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/volk)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/VulkanMemoryAllocator)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty EXCLUDE_FROM_ALL)
 
-set(SPIRV_REFLECT_EXECUTABLE OFF)
-set(SPIRV_REFLECT_STATIC_LIB ON)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/SPIRV-Reflect)
-
-target_link_libraries(vurl PUBLIC volk GPUOpen::VulkanMemoryAllocator spirv-reflect-static)
+target_link_libraries(vurl PUBLIC volk GPUOpen::VulkanMemoryAllocator spirv-reflect-static fossilize)
 target_include_directories(vurl PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/examples)

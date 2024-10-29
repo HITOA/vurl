@@ -1,4 +1,6 @@
-with import <nixpkgs> {};
+with import <nixpkgs> {
+  config.allowUnfree = true;
+};
 pkgs.mkShell {
   nativeBuildInputs = with pkgs; [ 
     cmake
@@ -21,6 +23,9 @@ pkgs.mkShell {
     vulkan-tools
     vulkan-loader
     vulkan-validation-layers
+
+    renderdoc
+    rgp
   ];
 
   NIX_LD_LIBRARY_PATH = lib.makeLibraryPath [

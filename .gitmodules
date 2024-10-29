@@ -1,0 +1,3 @@
+[submodule "3rdparty/Fossilize"]
+	path = 3rdparty/Fossilize
+	url = https://github.com/ValveSoftware/Fossilize.git

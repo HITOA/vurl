@@ -116,7 +116,7 @@ void Scene::Uninitialize() {
 void Scene::Draw() {
     view = glm::lookAt(position, position + direction, glm::vec3(0.0f, 1.0f, 0.0f));
     projection = glm::perspective(glm::radians(90.0f), (float)surface->GetWidth() / (float)surface->GetHeight(), 0.1f, 2000.0f);
-    graph->Execute();
+    //graph->Execute();
 }
 
 void Scene::AddNode(std::shared_ptr<Node> node) {
